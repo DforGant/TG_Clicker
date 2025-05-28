@@ -1,42 +1,56 @@
+import sqlite3
+from datetime import datetime
 from aiogram import Bot, Dispatcher, types
-from aiogram.utils.keyboard import InlineKeyboardBuilder
-from config import Config
-from models import User
-import asyncio
 
-bot = Bot(token=Config.BOT_TOKEN)
-dp = Dispatcher()
+# Инициализация бота и БД
+bot = Bot(token="YOUR_BOT_TOKEN")
+dp = Dispatcher(bot)
+conn = sqlite3.connect('clicker.db')
+cursor = conn.cursor()
 
-@dp.message(commands=['start'])
-async def cmd_start(message: types.Message):
-    user, created = await User.get_or_create(
-        telegram_id=message.from_user.id,
-        defaults={'total_clicks': 0}
+# Создаем таблицу пользователей при первом запуске
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS users (
+    telegram_id INTEGER PRIMARY KEY,
+    balance INTEGER DEFAULT 0,
+    last_session_start TEXT,
+    last_session_end TEXT
+)
+''')
+conn.commit()
+
+# Хранение активных сессий в памяти
+active_sessions = {}  # {telegram_id: {'clicks': int, 'start_time': datetime}}
+
+@dp.message_handler(commands=['start'])
+async def start_handler(message: types.Message):
+    """Обработчик команды /start - регистрирует пользователя и дает ссылку"""
+    telegram_id = message.from_user.id
+    
+    # Добавляем пользователя в БД если его нет
+    cursor.execute(
+        "INSERT OR IGNORE INTO users (telegram_id, balance) VALUES (?, 0)",
+        (telegram_id,)
     )
+    conn.commit()
     
-    kb = InlineKeyboardBuilder()
-    kb.button(text="Открыть кликер", web_app=types.WebAppInfo(
-        url=f"{Config.SERVER_URL}/game?user_id={message.from_user.id}"
-    ))
-    
-    text = "Вы зарегистрированы! " if created else "С возвращением! "
-    await message.answer(f"{text}Ваш баланс: {user.total_clicks} кликов", 
-                        reply_markup=kb.as_markup())
+    # Отправляем приветствие и ссылку
+    await message.answer(
+        "Добро пожаловать в Clicker Game!\n\n"
+        "Играйте по ссылке: [ваша ссылка на игру]\n"
+        "Используйте /game чтобы получить ссылку снова"
+    )
 
-@dp.message(commands=['game'])
-async def cmd_game(message: types.Message):
-    if not await User.exists(telegram_id=message.from_user.id):
-        await message.answer("Сначала зарегистрируйтесь с помощью /start")
-        return
-        
-    kb = InlineKeyboardBuilder()
-    kb.button(text="Открыть кликер", web_app=types.WebAppInfo(
-        url=f"{Config.SERVER_URL}/game?user_id={message.from_user.id}"
-    ))
-    await message.answer("Играть", reply_markup=kb.as_markup())
+@dp.message_handler(commands=['game'])
+async def game_link_handler(message: types.Message):
+    """Обработчик команды /game - отправляет ссылку на игру"""
+    await message.answer("Ваша ссылка на игру: [ваша ссылка на игру]")
 
-async def main():
-    await dp.start_polling(bot)
-
-if __name__ == '__main__':
-    asyncio.run(main())
+@dp.message_handler()
+async def other_messages_handler(message: types.Message):
+    """Обработчик всех остальных сообщений"""
+    await message.answer(
+        "Я не понимаю ваше сообщение. Доступные команды:\n"
+        "/start - начать работу с ботом\n"
+        "/game - получить ссылку на игру"
+    )
