@@ -1,64 +1,72 @@
 import os
 from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher, types, executor
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import (ReplyKeyboardMarkup, 
+                          KeyboardButton, 
+                          InlineKeyboardMarkup, 
+                          InlineKeyboardButton)
 
-# Загрузка токена
+# Загрузка токена из .env
 load_dotenv()
-TOKEN = os.getenv('BOT_TOKEN')
+BOT_TOKEN = os.getenv('BOT_TOKEN')
+
+if not BOT_TOKEN:
+    exit("Ошибка: не найден BOT_TOKEN в .env файле")
 
 # Инициализация бота
-bot = Bot(token=TOKEN)
+bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(bot)
 
 # Главное меню
 main_keyboard = ReplyKeyboardMarkup(
     resize_keyboard=True,
     one_time_keyboard=False
-).add(
+).row(
     KeyboardButton('🎮 Начать игру'),
     KeyboardButton('🔄 Получить ссылку')
 )
 
 @dp.message_handler(commands=['start'])
 async def start_handler(message: types.Message):
-    game_button = InlineKeyboardMarkup()
-    game_button.add(InlineKeyboardButton(
-        text="▶️ Играть сейчас", 
-        url="https://example-game.com/play"
-    ))
+    """Обработчик команды /start"""
+    game_button = InlineKeyboardMarkup().add(
+        InlineKeyboardButton("▶️ Играть сейчас", url="https://example-game.com/play")
+    )
     
     await message.answer(
         "🎮 Добро пожаловать в Clicker Game!\n\n"
-        "Нажмите кнопку ниже, чтобы начать играть:",
+        "Используйте кнопки ниже для навигации:",
         reply_markup=main_keyboard
     )
     await message.answer(
-        "Перейдите в игру:",
+        "Нажмите чтобы начать игру:",
         reply_markup=game_button
     )
 
-@dp.message_handler(lambda message: message.text == '🎮 Начать игру')
-async def start_game(message: types.Message):
-    game_button = InlineKeyboardMarkup()
-    game_button.add(InlineKeyboardButton(
-        text="🔵 Играть", 
-        url="https://example-game.com/play"
-    ))
-    await message.answer("Нажмите кнопку для перехода в игру:", reply_markup=game_button)
+@dp.message_handler(lambda m: m.text == '🎮 Начать игру')
+@dp.message_handler(commands=['game'])
+async def game_handler(message: types.Message):
+    """Обработчик кнопки игры"""
+    game_btn = InlineKeyboardMarkup().add(
+        InlineKeyboardButton("🔵 Перейти к игре", url="https://example-game.com/play")
+    )
+    await message.answer("Ваша ссылка на игру:", reply_markup=game_btn)
 
-@dp.message_handler(lambda message: message.text == '🔄 Получить ссылку')
-async def game_link_handler(message: types.Message):
-    game_button = InlineKeyboardMarkup()
-    game_button.add(InlineKeyboardButton(
-        text="🔗 Перейти к игре", 
-        url="https://example-game.com/play"
-    ))
-    await message.answer("Ваша ссылка на игру:", reply_markup=game_button)
+@dp.message_handler(lambda m: m.text == '🔄 Получить ссылку')
+async def refresh_handler(message: types.Message):
+    """Обработчик обновления ссылки"""
+    await game_handler(message)
 
 @dp.message_handler()
-async def other_messages_handler(message: types.Message):
-    await message.answer("Используйте кнопки ниже:", reply_markup=main_keyboard)
+async def any_message_handler(message: types.Message):
+    """Обработчик всех остальных сообщений"""
+    await message.answer(
+        "Используйте кнопки меню или команды:\n"
+        "/start - начать работу\n"
+        "/game - получить ссылку на игру",
+        reply_markup=main_keyboard
+    )
 
 if __name__ == '__main__':
+    print("Бот запущен...")
     executor.start_polling(dp, skip_updates=True)
