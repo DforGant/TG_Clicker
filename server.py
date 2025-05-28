@@ -1,5 +1,6 @@
 from fastapi import FastAPI, WebSocket, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from models import User, SessionLog, SessionLocal
 import uvicorn
 import sqlite3
 
@@ -12,41 +13,31 @@ app.add_middleware(
 )
 
 # Инициализация БД
-conn = sqlite3.connect('clicker.db', check_same_thread=False)
-cursor = conn.cursor()
+@app.on_event("startup")
+def on_startup():
+    init_db()
 
-cursor.execute('''
-    CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY,
-        telegram_id INTEGER UNIQUE,
-        total_clicks INTEGER DEFAULT 0
-    )
-''')
-
-cursor.execute('''
-    CREATE TABLE IF NOT EXISTS sessions (
-        id INTEGER PRIMARY KEY,
-        user_id INTEGER,
-        start_time DATETIME,
-        end_time DATETIME,
-        clicks INTEGER
-    )
-''')
-
-conn.commit()
+# Получени сессии БД
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 # Активные сессии
 active_sessions = {}
 
 @app.get("/user/{telegram_id}")
 def get_user(telegram_id: int):
-    cursor.execute("SELECT telegram_id, total_clicks FROM users WHERE telegram_id=?", (telegram_id,))
-    user = cursor.fetchone()
+    db = SessionLocal()
+    user = db.query(User).filter(User.telegram_id == telegram_id).first()
     if not user:
-        cursor.execute("INSERT INTO users (telegram_id) VALUES (?)", (telegram_id,))
-        conn.commit()
-        return {"telegram_id": telegram_id, "total_clicks": 0}
-    return {"telegram_id": user[0], "total_clicks": user[1]}
+        user = User(telegram_id=telegram_id)
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    return {"telegram_id": user.telegram_id, "total_clicks": user.total_clicks}
 
 @app.websocket("/ws/{telegram_id}")
 async def websocket_endpoint(websocket: WebSocket, telegram_id: int):
@@ -58,16 +49,22 @@ async def websocket_endpoint(websocket: WebSocket, telegram_id: int):
         await active_sessions[telegram_id].close()
     
     active_sessions[telegram_id] = websocket
-
+    
+    db = SessionLocal()
     try:
         while True:
             data = await websocket.receive_json()
             if data["type"] == "click":
-                cursor.execute("UPDATE users SET total_clicks = ? WHERE telegram_id = ?", (data["count"], telegram_id))
-                conn.commit()
+                user = db.query(User).filter(User.telegram_id == telegram_id).first()
+                if not user:
+                    user = User(telegram_id=telegram_id)
+                    db.add(user)
+                user.total_clicks = data["count"]
+                db.commit()
     except Exception as e:
         print(f"Сессия закрыта: {e}")
         del active_sessions[telegram_id]
+        db.close()
 
 # Для тестирования
 if __name__ == "__main__":
