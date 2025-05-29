@@ -2,6 +2,7 @@ from sqlalchemy import create_engine, Column, Integer, String, DateTime
 from sqlalchemy.orm import sessionmaker, declarative_base
 import datetime
 
+
 # Подключение к БД
 engine = create_engine('sqlite:///./clicker.db', connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -26,4 +27,3 @@ class SessionLog(Base):
 # Инициализация БД
 def init_db():
     Base.metadata.create_all(bind=engine)
-
