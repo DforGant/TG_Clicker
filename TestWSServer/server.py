@@ -170,19 +170,20 @@ async def websocket_endpoint(websocket: WebSocket):
     
     if telegram_id in active_sessions: # проверка на использование пользователем нескольких устройств
         dubUser[telegram_id] = active_sessions[telegram_id]
-        await dubUser[telegram_id].close()
+        await dubUser[telegram_id].close() # закрытие websocket соединения
 
     active_sessions[telegram_id] = websocket
     clicksUser = 0
     
     if active_user is None: # проверка существует ли пользователь в БД
-        newUser = User(telegram_id=telegram_id,total_clicks=0)
-        db.add(newUser)
-        db.commit()
-        db.refresh(newUser)
+        newUser = User(telegram_id=telegram_id,total_clicks=0) # создание новой записи
+        db.add(newUser) # добавление новой записи в запрос
+        db.commit()  # Выполнение запроса
+        db.refresh(newUser) # Обновление БД
     
     active_user = db.query(User).filter(User.telegram_id == telegram_id).first()
     print(telegram_id,active_user.total_clicks)
+    
     await websocket.send_text(f"{active_user.total_clicks}") # отпрака данных пользователю
     
     try:
@@ -195,20 +196,20 @@ async def websocket_endpoint(websocket: WebSocket):
     except Exception:
         print("Disconnect")
         if telegram_id in dubUser: # проверка на использование пользователем нескольких устройств
-            del dubUser[telegram_id]
+            del dubUser[telegram_id] # Удаление старого websocket соединения
             active_user = db.query(User).filter(User.telegram_id == telegram_id).first()
-            active_user.total_clicks += clicksUser
+            active_user.total_clicks += clicksUser # обновление кликов
             db.commit()
             active_user = db.query(User).filter(User.telegram_id == telegram_id).first()
             print(telegram_id,active_user.total_clicks)
             await active_sessions[telegram_id].send_text(f"{active_user.total_clicks}")
         else: # Запись кликов в БД при отключении соединения
             active_user = db.query(User).filter(User.telegram_id == telegram_id).first()
-            active_user.total_clicks += clicksUser
+            active_user.total_clicks += clicksUser # обновление кликов
             db.commit()
             active_user = db.query(User).filter(User.telegram_id == telegram_id).first()
             print(telegram_id,active_user.total_clicks)
-            del active_sessions[telegram_id]
+            del active_sessions[telegram_id] # Удаление websocket соединения
         
 
 if __name__ == "__main__":
