@@ -1,9 +1,17 @@
-from sqlalchemy import create_engine, Column, Integer, String, DateTime
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, and_, func
 from sqlalchemy.orm import sessionmaker, declarative_base
+import os
 import datetime
 
+
+
+folder = "DB"
+# создание папки DB если её не существует
+if not os.path.exists(folder):
+    os.makedirs(folder)
+
 # Подключение к БД
-engine = create_engine('sqlite:///./clicker.db', connect_args={"check_same_thread": False})
+engine = create_engine('sqlite:///./DB/clicker.db', connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -19,11 +27,10 @@ class SessionLog(Base):
     __tablename__ = "sessions"
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer)
-    start_time = Column(DateTime, default=datetime.datetime.utcnow)
-    end_time = Column(DateTime)
+    start_time = Column(DateTime, default=datetime.datetime.now)
+    end_time = Column(DateTime, nullable=True, default=None)
     clicks = Column(Integer)
 
 # Инициализация БД
 def init_db():
     Base.metadata.create_all(bind=engine)
-

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Кликер</title>
+  <link rel="stylesheet" href="/static/index.css">
+</head>
+<body>
+  <div id="container">
+    <div id='reg'>
+      <label>Вход в приложение</label>
+      <div>Имя пользователя</div>
+      <input type='text' id='nameUser' requred><br>
+      <button id='regbtn'>Войти в приложение</button>
+      <div id='message'></div>
+    </div>
+    <div id='clicker'>
+        <div id="game">
+          <div id="contClick">
+            Клики: <span id="clicks">0</span>
+          </div>
+          <div id="btnClick">
+            <button id="btn">Кликни меня</button>
+          </div>
+        </div>
+        <div id="userHisrtory">
+          История кликов
+          <div id="history">
+            
+          </div>
+        </div>
+        
+    </div>    
+  </div>
+  <script>
+
+    var ws = null;
+
+    var clicks = null;
+
+    document.getElementById('regbtn').addEventListener('click',()=>{
+
+      if(document.getElementById('nameUser').value!=""){
+
+        document.getElementById('reg').style.display = "none";
+
+        document.getElementById('clicker').style.display = "flex";
+      
+        var ws = new WebSocket("ws://127.0.0.1:8000/ws");
+
+        ws.onopen = function(e){
+          let user = document.getElementById('nameUser').value;
+        
+          ws.send(`${user}`);        
+        }
+        ws.onmessage = function(e){
+		      let data = JSON.parse(e.data);
+          console.log(data);
+		      if (data.header == "clicks"){
+			      document.getElementById('clicks').innerHTML = data.content;
+		      }
+          if(data.header == "history"){
+            document.getElementById('history').innerHTML = data.content;
+          }
+
+
+        }
+        ws.onclose = function(e){
+
+          document.body.innerHTML = "Соедиенеие сброшено";
+            
+        }
+
+        document.getElementById('btn').addEventListener('click',()=>{
+
+          ws.send('click');
+          
+          let click = document.getElementById('clicks').innerHTML;
+
+          clicks = Number(click)+1;
+          
+          document.getElementById('clicks').innerHTML = clicks;
+ 
+        });
+
+      }
+      else{
+
+       document.getElementById('message').innerHTML = "Введите имя пользователя";
+
+      }
+
+    });
+    
+  </script>
+</body>
+</html>
