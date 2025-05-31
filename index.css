@@ -1,0 +1,61 @@
+body{
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100vw;
+  height: 100vh;
+  margin: 0px;
+}
+#container{
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+
+}
+#clicker{
+
+  display: none;
+  justify-content: space-evenly;
+  width: 100vw;
+
+}
+#reg{
+
+  display:flex;
+  flex-direction:column;
+  justify-content: center;
+  align-items:center;
+  text-align: center;
+}
+#game{
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+
+}
+#history{
+
+  width: 400px;
+  height: 500px;
+  border: 1px solid;
+  box-sizing: border-box;
+
+}
+.session{
+
+  box-sizing: border-box;
+  padding: 10px;
+  background-color: #c1bfbf;
+  border: 1px solid;
+
+}
+#userHisrtory{
+
+  text-align: center;
+
+}

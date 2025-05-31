@@ -1,48 +1,99 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <title>Кликер</title>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Кликер</title>
+  <link rel="stylesheet" href="/static/index.css">
 </head>
 <body>
-    <h1>Кликер</h1>
-    <p id="counter">0</p>
-    <button onclick="handleClick()">Кликни меня</button>
+  <div id="container">
+    <div id='reg'>
+      <label>Вход в приложение</label>
+      <div>Имя пользователя</div>
+      <input type='text' id='nameUser' requred><br>
+      <button id='regbtn'>Войти в приложение</button>
+      <div id='message'></div>
+    </div>
+    <div id='clicker'>
+        <div id="game">
+          <div id="contClick">
+            Клики: <span id="clicks">0</span>
+          </div>
+          <div id="btnClick">
+            <button id="btn">Кликни меня</button>
+          </div>
+        </div>
+        <div id="userHisrtory">
+          История кликов
+          <div id="history">
+            
+          </div>
+        </div>
+        
+    </div>    
+  </div>
+  <script>
 
-    <!-- Telegram SDK -->
-    <script src="https://telegram.org/js/telegram-web-app.js "></script>
+    var ws = null;
 
-    <script>
-        const user = window.Telegram.WebApp.initDataUnsafe.user;
-        const ws = new WebSocket(`wss://yourserver.com/ws/${user.id}`);
+    var clicks = null;
 
-        let count = 0;
+    document.getElementById('regbtn').addEventListener('click',()=>{
 
-        // Получаем текущее значение кликов
-        fetch(`https://yourserver.com/user/ ${user.id}`)
-            .then(res => res.json())
-            .then(data => {
-                count = data.total_clicks || 0;
-            });
+      if(document.getElementById('nameUser').value!=""){
 
-        // Обновляем счётчик
-        function handleClick() {
-            count++;
-            document.getElementById("counter").innerText = count;
-            ws.send(JSON.stringify({ type: "click", count: count }));
+        document.getElementById('reg').style.display = "none";
+
+        document.getElementById('clicker').style.display = "flex";
+      
+        var ws = new WebSocket("ws://127.0.0.1:8000/ws");
+
+        ws.onopen = function(e){
+          let user = document.getElementById('nameUser').value;
+        
+          ws.send(`${user}`);        
+        }
+        ws.onmessage = function(e){
+		      let data = JSON.parse(e.data);
+          console.log(data);
+		      if (data.header == "clicks"){
+			      document.getElementById('clicks').innerHTML = data.content;
+		      }
+          if(data.header == "history"){
+            document.getElementById('history').innerHTML = data.content;
+          }
+
+
+        }
+        ws.onclose = function(e){
+
+          document.body.innerHTML = "Соедиенеие сброшено";
+            
         }
 
-        // Подключение по WebSocket
-        ws.onopen = () => {
-            console.log("WebSocket подключён");
-        };
+        document.getElementById('btn').addEventListener('click',()=>{
 
-        ws.onmessage = (e) => {
-            const msg = JSON.parse(e.data);
-            if (msg.type === "update") {
-                console.log("Сессия закрыта");
-            }
-        };
-    </script>
+          ws.send('click');
+          
+          let click = document.getElementById('clicks').innerHTML;
+
+          clicks = Number(click)+1;
+          
+          document.getElementById('clicks').innerHTML = clicks;
+ 
+        });
+
+      }
+      else{
+
+       document.getElementById('message').innerHTML = "Введите имя пользователя";
+
+      }
+
+    });
+    
+  </script>
 </body>
 </html>
