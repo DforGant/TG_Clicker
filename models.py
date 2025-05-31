@@ -4,7 +4,6 @@ import os
 import datetime
 
 
-
 folder = "DB"
 # создание папки DB если её не существует
 if not os.path.exists(folder):
