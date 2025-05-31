@@ -3,6 +3,13 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 import os
 import datetime
 
+
+
+folder = "DB"
+# создание папки DB если её не существует
+if not os.path.exists(folder):
+    os.makedirs(folder)
+
 # Подключение к БД
 engine = create_engine('sqlite:///./DB/clicker.db', connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
