@@ -5,3 +5,4 @@ sqlalchemy
 
 Библиотеки для работы с Ботом
 aiogram
+dotenv
