@@ -17,6 +17,9 @@ BOT_TOKEN = os.getenv('BOT_TOKEN')
 if not BOT_TOKEN:
     exit("Ошибка: не найден BOT_TOKEN в .env файле") #понадобиться в случае изменения токена
 
+# Ссылка на домен
+app_url = "/"
+
 # Подрубаем бота
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
@@ -33,7 +36,7 @@ main_keyboard = ReplyKeyboardMarkup(
 async def start_handler(message: types.Message):
     """Обработчик команды /start"""
     game_button = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="▶️ Играть сейчас", url="https://example-game.com/play")]
+        [InlineKeyboardButton(text="▶️ Играть сейчас", url=app_url)]
     ])
     
     await message.answer(
@@ -51,7 +54,7 @@ async def start_handler(message: types.Message):
 async def game_handler(message: types.Message):
     """Обработчик кнопки игры"""
     game_btn = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🔵 Перейти к игре", url="https://example-game.com/play")] #Надо подрубить само приложение
+        [InlineKeyboardButton(text="🔵 Перейти к игре", url=app_url)]
     ])
     await message.answer("Ваша ссылка на игру:", reply_markup=game_btn) 
 
