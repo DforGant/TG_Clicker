@@ -3,5 +3,7 @@ fastapi
 uvicorn
 sqlalchemy
 
+
 Библиотеки для работы с Ботом
 aiogram
+pydantic_settings

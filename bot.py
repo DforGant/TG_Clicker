@@ -1,6 +1,6 @@
 import os
 import asyncio
-from dotenv import load_dotenv
+from settings import *
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.types import ( #Исправил проблему с версиями
@@ -10,11 +10,11 @@ from aiogram.types import ( #Исправил проблему с версиям
     InlineKeyboardButton
 )
 
-# Загрузка токена (из .env)
-load_dotenv()
-BOT_TOKEN = os.getenv('BOT_TOKEN')
+# Загрузка из .env
+BOT_TOKEN = settings.BOT_TOKEN
+app_url = settings.app_url
 
-if not BOT_TOKEN:
+if not BOT_TOKEN or BOT_TOKEN == "":
     exit("Ошибка: не найден BOT_TOKEN в .env файле") #понадобиться в случае изменения токена
 
 # Подрубаем бота
@@ -33,7 +33,7 @@ main_keyboard = ReplyKeyboardMarkup(
 async def start_handler(message: types.Message):
     """Обработчик команды /start"""
     game_button = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="▶️ Играть сейчас", url="https://example-game.com/play")]
+        [InlineKeyboardButton(text="▶️ Играть сейчас", url=app_url)]
     ])
     
     await message.answer(
@@ -51,7 +51,7 @@ async def start_handler(message: types.Message):
 async def game_handler(message: types.Message):
     """Обработчик кнопки игры"""
     game_btn = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🔵 Перейти к игре", url="https://example-game.com/play")] #Надо подрубить само приложение
+        [InlineKeyboardButton(text="🔵 Перейти к игре", url=app_url)]
     ])
     await message.answer("Ваша ссылка на игру:", reply_markup=game_btn) 
 
