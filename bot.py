@@ -17,6 +17,9 @@ app_url = settings.app_url
 if not BOT_TOKEN or BOT_TOKEN == "":
     exit("Ошибка: не найден BOT_TOKEN в .env файле") #понадобиться в случае изменения токена
 
+# Ссылка на домен
+app_url = "/"
+
 # Подрубаем бота
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
