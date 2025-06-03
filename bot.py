@@ -1,6 +1,6 @@
 import os
 import asyncio
-from dotenv import load_dotenv
+from settings import *
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.types import ( #Исправил проблему с версиями
@@ -10,11 +10,11 @@ from aiogram.types import ( #Исправил проблему с версиям
     InlineKeyboardButton
 )
 
-# Загрузка токена (из .env)
-load_dotenv()
-BOT_TOKEN = os.getenv('BOT_TOKEN')
+# Загрузка из .env
+BOT_TOKEN = settings.BOT_TOKEN
+app_url = settings.app_url
 
-if not BOT_TOKEN:
+if not BOT_TOKEN or BOT_TOKEN == "":
     exit("Ошибка: не найден BOT_TOKEN в .env файле") #понадобиться в случае изменения токена
 
 # Ссылка на домен

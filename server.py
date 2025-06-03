@@ -4,10 +4,11 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from models import *
 from ClassMessage import *
+from settings import *
 import uvicorn
 
-HOST = "127.0.0.1"
-PORT = 8000
+HOST = settings.HOST
+PORT = settings.PORT
 
 app = FastAPI() # объект приложения
 app.add_middleware(
@@ -110,7 +111,7 @@ async def websocket_endpoint(websocket: WebSocket):
     
     historyUser = ""
     for date, total in history:
-        historyUser += f"<div class='session'>Клики за <span>{date}</span>: {total}<span></span></div>"
+        historyUser += f"<div class='session row bg-light border p-3 text-center'><p>Клики за <span>{date}</span>: <span>{total}</span></p></div>"
 
     message = Message("history",historyUser)
     
