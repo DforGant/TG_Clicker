@@ -1,78 +1,85 @@
-import os
 import asyncio
-from dotenv import load_dotenv
+import logging
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
-from aiogram.types import ( #Исправил проблему с версиями
-    ReplyKeyboardMarkup, 
-    KeyboardButton, 
-    InlineKeyboardMarkup, 
+from aiogram.types import (
+    ReplyKeyboardMarkup,
+    KeyboardButton,
+    WebAppInfo,
+    InlineKeyboardMarkup,
     InlineKeyboardButton
 )
+from dotenv import load_dotenv
+import os
 
-# Загрузка токена (из .env)
+# Настройка логов
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Загружаем переменные окружения
 load_dotenv()
-BOT_TOKEN = os.getenv('BOT_TOKEN')
+
+# Получаем токен и URL WebApp
+BOT_TOKEN = os.getenv("BOT_TOKEN") or '7957287404:AAFvczJbKcoyglv3UTb_Hyw-pdJTN2xfQZ8'  # Замените на свой
+WEBAPP_URL = os.getenv("WEBAPP_URL") or 'https://plenty-apes-end.loca.lt'  # HTTPS обязателен
 
 if not BOT_TOKEN:
-    exit("Ошибка: не найден BOT_TOKEN в .env файле") #понадобиться в случае изменения токена
+    logger.error("Ошибка: BOT_TOKEN не найден!")
+    exit(1)
 
-# Подрубаем бота
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
-# Сообщения с  кнопочками
+# Главное меню с кнопкой WebApp
 main_keyboard = ReplyKeyboardMarkup(
     keyboard=[
-        [KeyboardButton(text='🎮 Начать игру'), KeyboardButton(text='🔄 Получить ссылку')]
+        [KeyboardButton(text="🎮 Открыть игру", web_app=WebAppInfo(url=WEBAPP_URL))]
     ],
     resize_keyboard=True
+)
+
+# Inline-кнопка для WebApp (альтернативный вариант)
+web_app_inline_button = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [InlineKeyboardButton(
+            text="▶️ Играть в MiniApp",
+            web_app=WebAppInfo(url=WEBAPP_URL)
+        )]
+    ]
 )
 
 @dp.message(Command("start"))
 async def start_handler(message: types.Message):
     """Обработчик команды /start"""
-    game_button = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="▶️ Играть сейчас", url="https://example-game.com/play")]
-    ])
-    
+    user_id = message.from_user.id  # Получаем ID пользователя
+    logger.info(f"Пользователь {user_id} запустил бота")
+
+    # Можно передать user_id в WebApp через URL (если требуется)
+    webapp_url_with_user_id = f"{WEBAPP_URL}?tg_user_id={user_id}"
+
     await message.answer(
-        "🎮 Добро пожаловать в Clicker Game!\n\n"
-        "Используйте кнопки ниже для навигации:",
+        f"🎮 Добро пожаловать в игру, ID {user_id}!\n\n"
+        "Нажмите кнопку ниже, чтобы открыть игру в Telegram:",
         reply_markup=main_keyboard
     )
+    
+    # Альтернативный вариант с Inline-кнопкой
     await message.answer(
-        "Нажмите чтобы начать игру:",
-        reply_markup=game_button
+        "Или нажмите здесь:",
+        reply_markup=web_app_inline_button
     )
-
-@dp.message(lambda message: message.text == '🎮 Начать игру')
-@dp.message(Command("game"))
-async def game_handler(message: types.Message):
-    """Обработчик кнопки игры"""
-    game_btn = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🔵 Перейти к игре", url="https://example-game.com/play")] #Надо подрубить само приложение
-    ])
-    await message.answer("Ваша ссылка на игру:", reply_markup=game_btn) 
-
-@dp.message(lambda message: message.text == '🔄 Получить ссылку')
-async def refresh_handler(message: types.Message):
-    """Обработчик обновления ссылки"""
-    await game_handler(message)
 
 @dp.message()
-async def any_message_handler(message: types.Message):
-    """Обработчик всех остальных сообщений"""
+async def default_handler(message: types.Message):
+    """Обработчик остальных сообщений"""
     await message.answer(
-        "Используйте кнопки меню или команды:\n"
-        "/start - начать работу\n"
-        "/game - получить ссылку на игру",
+        "Используйте кнопку ниже для запуска игры или /start.",
         reply_markup=main_keyboard
-    ) # Базовый функционал, за не имением БД и кликера
+    )
 
 async def main():
+    logger.info("Бот запущен...")
     await dp.start_polling(bot)
 
 if __name__ == '__main__':
-    print("Бот запущен...") #проерка на компе, работает отлично. Надо подключить к гит
     asyncio.run(main())
