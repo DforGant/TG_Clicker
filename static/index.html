@@ -27,7 +27,7 @@
       </div>
       <div class="col-md-6 mb-4" id="history-box">
         <div class="border rounded p-4 h-100" id="userHistory">
-          <h4 class="mb-3 g-3">История кликов</h4>
+          <h4 class="mb-3 g-3">История кликов (сегодня)</h4>
           <div id="history"></div>
         </div>
       </div>
@@ -45,6 +45,32 @@
 
     const user = tg.initDataUnsafe?.user;
 
+    // Получить сегодняшнюю дату в формате YYYY-MM-DD
+    function getToday() {
+      return new Date().toISOString().split('T')[0];
+    }
+
+    // Загрузить историю кликов за сегодня
+    function loadHistory(userId) {
+      const today = getToday();
+      fetch(`/history/${userId}/${today}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.history && data.history.length > 0) {
+            const historyHtml = data.history.map(item =>
+              `<div>Клики: <b>${item.clicks}</b> (в ${item.date})</div>`
+            ).join('');
+            document.getElementById('history').innerHTML = historyHtml;
+          } else {
+            document.getElementById('history').innerHTML = "<div>История за сегодня отсутствует.</div>";
+          }
+        })
+        .catch(err => {
+          console.error("Ошибка загрузки истории:", err);
+          document.getElementById('history').innerHTML = "<div>Ошибка загрузки истории.</div>";
+        });
+    }
+
     if (!user) {
       document.body.innerHTML = "<div class='text-center p-5'>❌ Ошибка: не удалось получить данные пользователя из Telegram</div>";
     } else {
@@ -52,7 +78,10 @@
       const userId = user.id;
       document.getElementById('user-id').textContent = userId;
 
-      ws = new WebSocket(`wss://clicker.loca.lt/ws/${userId}`);
+      // Загружаем историю при входе
+      loadHistory(userId);
+
+      ws = new WebSocket(`wss://${location.host}/ws/${userId}`);
 
       ws.onopen = function () {
         ws.send(JSON.stringify({type: "init", userId: userId}));
@@ -62,9 +91,7 @@
         const data = JSON.parse(e.data);
         if (data.header === "clicks") {
           document.getElementById('clicks').innerText = data.content;
-        }
-        if (data.header === "history") {
-          document.getElementById('history').innerHTML = data.content;
+          clicks = data.content; // Синхронизируем локальный счётчик
         }
       };
 
@@ -80,6 +107,7 @@
         clicks++;
         ws.send(JSON.stringify({type: "click", count: clicks}));
         document.getElementById('clicks').innerText = clicks;
+        loadHistory(userId); // Обновляем историю после каждого клика
       });
     }
   </script>
