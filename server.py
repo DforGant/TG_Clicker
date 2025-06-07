@@ -1,13 +1,15 @@
-from fastapi import FastAPI, WebSocket, HTTPException
+from fastapi import FastAPI, WebSocket, HTTPException, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from models import *
-from ClassMessage import *
+from models import User, SessionLog, init_db, DB
+from ClassMessage import Message
+from settings import settings
 import uvicorn
+import datetime
 
-HOST = "127.0.0.1"
-PORT = 8000
+HOST = settings.HOST
+PORT = settings.PORT
 
 app = FastAPI() # объект приложения
 app.add_middleware(
@@ -26,118 +28,79 @@ app.mount("/static",StaticFiles(directory="."),name='static')
 
 # Инициализация БД при запуске приложения
 init_db()
-
-
-# Получени сессии БД
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
+db = DB()
 
 # Активные и дублированные сессии
 active_sessions = {}
 dubUser = {}
 
 
-html = None
-
-# Тестовая HTML страница
-with open('index.html','r',encoding="utf-8") as file:
-    html = file.read()
-
 @app.get("/") # обработка запроса получения страницы сайта
 async def get():
-    return HTMLResponse(html)
+    # Тестовая HTML страница
+    with open('index.html','r',encoding="utf-8") as file:
+        html = file.read()
+        return HTMLResponse(html)
 
 
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
+@app.websocket("/ws/{telegram_id}")
+async def websocket_endpoint(websocket: WebSocket, telegram_id: int):
     await websocket.accept()
     
-    db = SessionLocal() # Получение сессии БД
+    global db
     
-    print("New connection")
-    telegram_id = await websocket.receive_text() # получение telegram_id
-
-    active_user = db.query(User).filter(User.telegram_id == telegram_id).first() # получение данных из БД
+    print(f"New connection: {telegram_id} \n")
+    
+    active_user = db.getUser(telegram_id) # получение данных о пользователе
     
     if telegram_id in active_sessions: # проверка на использование пользователем нескольких устройств
         dubUser[telegram_id] = active_sessions[telegram_id]
-        # обновление истории кликов
-        updateSession = db.query(SessionLog).filter(and_(SessionLog.user_id == telegram_id, SessionLog.start_time == dubUser[telegram_id]['session_start'])).first()
-        updateSession.end_time = datetime.datetime.now()
-        updateSession.clicks = dubUser[telegram_id]['clicksUser']
-        db.commit()
-        db.close()
-        db = SessionLocal()
+        db.updateDataUser(telegram_id,dubUser[telegram_id])
+        
         await dubUser[telegram_id]['ws'].close() # закрытие websocket соединения
 
+
+    start_time = datetime.datetime.now() # Запоминание времени открытого соединения
     
     if active_user is None: # проверка существует ли пользователь в БД
-        newUser = User(telegram_id=telegram_id,total_clicks=0) # создание новой записи
-        db.add(newUser) # добавление новой записи в запрос
-        db.commit()  # Выполнение запроса
-        db.refresh(newUser) # Обновление БД
-    
-    active_user = db.query(User).filter(User.telegram_id == telegram_id).first()
+        db.createUser(telegram_id)
+        active_user = db.getUser(telegram_id)
 
-    # Установка сессии 
-    sessionUser = SessionLog(user_id=telegram_id, clicks=0)
-    db.add(sessionUser)
-    db.commit()
-    db.refresh(sessionUser)
-    sessionUser = db.query(SessionLog).filter(and_(SessionLog.user_id == telegram_id, SessionLog.end_time.is_(None))).first()
-
-    active_sessions[telegram_id] = {"ws": websocket, "session_start": sessionUser.start_time, "clicksUser":0}
-    print(active_sessions)
-    print(active_sessions[telegram_id])
-    print(active_sessions[telegram_id]['session_start'])
+    active_sessions[telegram_id] = {"ws": websocket, "session_start": start_time, "clicksUser":0}
     
     print("startSession")
-    print(telegram_id,active_user.total_clicks,active_sessions[telegram_id]['session_start'],sessionUser.end_time)
+    print(telegram_id,active_user.total_clicks,active_sessions[telegram_id]['session_start'])
+    print("\n")
 
     message = Message("clicks",active_user.total_clicks);
     
-    await websocket.send_text(message.to_json()) # отпрака данных пользователю
+    await active_sessions[telegram_id]['ws'].send_text(message.to_json()) # отпрака данных пользователю
     
-    history = db.query(
-        func.date(SessionLog.start_time).label('date'),
-        func.sum(SessionLog.clicks).label('total')
-        ).filter(SessionLog.user_id == telegram_id).group_by(func.date(SessionLog.start_time)).all()
+    history = db.getHistoryUser(telegram_id)
     
     historyUser = ""
     for date, total in history:
-        historyUser += f"<div class='session'>Клики за <span>{date}</span>: {total}<span></span></div>"
-
+        historyUser += f"<div class='session row bg-light border p-3 text-center'><p>Клики за <span>{date}</span>: <span>{total}</span></p></div>"
+    
     message = Message("history",historyUser)
     
-    await websocket.send_text(message.to_json())
+    await active_sessions[telegram_id]['ws'].send_text(message.to_json())
     
     try:
         while True:
             data = await websocket.receive_text() # получение данных от клиента
-            if data =="click":
+            if data == "click":
                 active_sessions[telegram_id]['clicksUser'] += 1
-                print(active_sessions[telegram_id]['clicksUser'])
             
-    except Exception:
+    except WebSocketDisconnect as error:
+        
         print("Disconnect")
+        print(f"Ошибка: {error}")
         if telegram_id in dubUser: # проверка на использование пользователем нескольких устройств
             
-            db.close() # Закрытие старой БД
-            db = SessionLocal() # Получение новой сессии БД для обновления данных
-            
-            # обновление кликов
-            active_user = db.query(User).filter(User.telegram_id == telegram_id).first()
-            active_user.total_clicks += dubUser[telegram_id]['clicksUser']
-            
-            
-            db.commit()
-            active_user = db.query(User).filter(User.telegram_id == telegram_id).first()
+            active_user = db.getUser(telegram_id)
             print("dubUser")
+            print("endSession")
             print(telegram_id,active_user.total_clicks,dubUser[telegram_id]['clicksUser'])
 
             
@@ -146,45 +109,32 @@ async def websocket_endpoint(websocket: WebSocket):
             
             await active_sessions[telegram_id]['ws'].send_text(message.to_json())
 
-            history = db.query(
-                func.date(SessionLog.start_time).label('date'),
-                func.sum(SessionLog.clicks).label('total')
-                ).filter(SessionLog.user_id == telegram_id).group_by(func.date(SessionLog.start_time)).all()
-    
+            history = db.getHistoryUser(telegram_id)
+            
             historyUser = ""
             for date, total in history:
-                historyUser += f"<div class='session'>Клики за <span>{date}</span>: {total}<span></span></div>"
+                historyUser += f"<div class='session row bg-light border p-3 text-center'><p>Клики за <span>{date}</span>: <span>{total}</span></p></div>"
 
             message = Message("history",historyUser)
             await active_sessions[telegram_id]['ws'].send_text(message.to_json())
-
-            del dubUser[telegram_id] # Удаление старой сессии
-            db.close() # Закрытие новой БД
+            
+            del dubUser[telegram_id] # Удаление старого соединения
+            
         else: # Запись кликов в БД при отключении соединения
-            db.close() # Закрытие старой БД
-            db = SessionLocal() # Получение новой сессии БД для обновления данных
 
-            # обновление кликов
-            active_user = db.query(User).filter(User.telegram_id == telegram_id).first()
-            active_user.total_clicks += active_sessions[telegram_id]['clicksUser'] 
-
-            #обновление истроии кликов
-            updateSession = db.query(SessionLog).filter(and_(SessionLog.user_id == telegram_id, SessionLog.start_time == active_sessions[telegram_id]['session_start'])).first()
-            updateSession.end_time = datetime.datetime.now()
-            updateSession.clicks = active_sessions[telegram_id]['clicksUser']
+            db.updateDataUser(telegram_id,active_sessions[telegram_id])
             
-            db.commit()
-            active_user = db.query(User).filter(User.telegram_id == telegram_id).first()
-            updateSession = db.query(SessionLog).filter(and_(SessionLog.user_id == telegram_id, SessionLog.start_time == active_sessions[telegram_id]['session_start'])).first()
+            active_user = db.getUser(telegram_id)
+            session = db.getSession(telegram_id,active_sessions[telegram_id]['session_start'])
+            
             print("endSession")
-            print(updateSession.start_time, updateSession.user_id, updateSession.end_time, updateSession.clicks)
-            print(telegram_id,active_user.total_clicks)
+            print(session.start_time, session.user_id, session.end_time, session.clicks, active_user.total_clicks)
+            print("\n")
             
-            db.close()# Закрытие БД
             del active_sessions[telegram_id] # Удаление сессии
         
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host=HOST, port=PORT) # Запуск Сервера
+    uvicorn.run("server:app", host=HOST, port=PORT) # Запуск Сервера
 
