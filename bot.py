@@ -19,7 +19,7 @@ if not BOT_TOKEN:
     logger.error("Ошибка: не найден BOT_TOKEN в .env файле")
     exit(1)
 
-WEB_APP_URL = "https://clicker.loca.lt"  # замените на ваш домен
+WEB_APP_URL = os.getenv("app_url")  # замените на ваш домен
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()

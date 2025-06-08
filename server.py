@@ -49,8 +49,6 @@ async def websocket_endpoint(websocket: WebSocket, telegram_id: int):
     
     global db
     
-
-    
     active_user = db.getUser(telegram_id) # получение данных о пользователе
     
     if telegram_id in active_sessions: # проверка на использование пользователем нескольких устройств
@@ -93,8 +91,6 @@ async def websocket_endpoint(websocket: WebSocket, telegram_id: int):
             print(f"Disconnect: {telegram_id}")
             db.updateDataUser(telegram_id,active_sessions[telegram_id])
             del active_sessions[telegram_id] # Удаление сессии
-        
-
 
 if __name__ == "__main__":
     uvicorn.run(app, host=HOST, port=PORT) # Запуск Сервера
