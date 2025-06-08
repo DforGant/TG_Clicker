@@ -45,8 +45,8 @@ class DB:
         self.database.refresh(newUser) # Обновление БД
 
     def getUser(self,telegram_id):
-        user = self.database.query(User).filter(User.telegram_id == telegram_id).first()
-        return user
+        return self.database.query(User).filter(User.telegram_id == telegram_id).first()
+        
 
     def getHistoryUser(self,telegram_id):
         return self.database.query(
@@ -66,7 +66,7 @@ class DB:
         self.database.add(sessionUser)
         self.database.commit()
         self.database.refresh(sessionUser)
-        
+        return 0
         
     def getSession(self,telegram_id,start_time):
         return self.database.query(SessionLog).filter(and_(SessionLog.user_id == telegram_id, SessionLog.start_time == start_time)).first()
