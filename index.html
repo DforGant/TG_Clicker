@@ -1,37 +1,49 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
   <meta charset="UTF-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Кликер</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-4Q6Gf2aSP4eDXB8Miphtr37CMZZQ5oXLH2yaXMJ2w8e2ZtHTl7GptT4jmndRuHDT" crossorigin="anonymous">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-4Q6Gf2aSP4eDXB8Miphtr37CMZZQ5oXLH2yaXMJ2w8e2ZtHTl7GptT4jmndRuHDT" crossorigin="anonymous">
   <link rel="stylesheet" href="/static/index.css">
 </head>
+
 <body class="d-flex flex-column min-vh-100 justify-content-center">
   <div class="container my-5 hidden" id="clicker">
     <div class="row" id="game">
       <!-- Кликер -->
-      <div class="col-md-6 mb-4 d-flex flex-column align-items-center justify-content-center">
+      <div class="col-md-6 mb-4 text-center">
         <div class="text-center" id="contClick">
           Клики: <span class="display-6" id="clicks">0</span>
         </div>
         <button class="btn btn-primary btn-lg" id="btn">Кликни меня</button>
       </div>
       <!-- История по дням -->
-      <div class="col-md-6 mb-4" id="history-box"> <!-- Настроить, чтобы было по центру -->
+      <div class="col-md-6 mb-4" id="history-box">
+        <!-- Настроить, чтобы было по центру -->
         <div class="border rounded p-4 h-100" id="userHistory">
-          <h4 class="mb-3 g-3" >История кликов</h4>
-          <div id="history">
+          <div id="optionHistory" class="d-flex justify-content-center align-items-center" style="gap: 10px;">
+            <h6 class="mb-1">История кликов</h6>
+            <div id="todayClicks" class="btnHistory btn btn-primary">Cегодня</div>
+            <div id="totalClicks" class="btnHistory btn btn-primary">Всего</div>
           </div>
-        </div> 
+          <div id="historyToday" class="mt-2 mb-2 d-flex flex-column overflow-auto" style="min-height: 37vh; max-height: 37vh; gap: 4px;">
+          </div>
+          <div id="historyTotal" class="hidden mt-2 mb-2 d-flex flex-column overflow-auto" style="min-height: 37vh;max-height: 37vh; gap: 4px;">
+          </div>
+        </div>
       </div>
 
-    </div> 
+    </div>
   </div>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/js/bootstrap.bundle.min.js" integrity="sha384-j1CDi7MgGQ12Z7Qab0qlWQ/Qqz24Gc6BM0thvEMVjHnfYGF0rmFCozFSxQBxwHKO" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/js/bootstrap.bundle.min.js"
+    integrity="sha384-j1CDi7MgGQ12Z7Qab0qlWQ/Qqz24Gc6BM0thvEMVjHnfYGF0rmFCozFSxQBxwHKO"
+    crossorigin="anonymous"></script>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script>
+  <script>
     let ws = null;
     let clicks = 0;
 
@@ -42,38 +54,43 @@
 
     if (!user) {
       document.body.innerHTML = "<div class='text-center p-5'>❌ Ошибка: не удалось получить данные пользователя из Telegram</div>";
-    } 
-	else {
+    }
+    else {
       const userId = user.id;
 
       ws = new WebSocket(`wss://${location.host}/ws/${userId}`);
 
       ws.onopen = function () {
-        ws.send(JSON.stringify({type: "init", userId: userId}));
+        ws.send(JSON.stringify({ type: "init", userId: userId }));
       };
 
       ws.onmessage = function (e) {
         const data = JSON.parse(e.data);
-		
+
         if (data.header === "clicks") {
           document.getElementById('clicks').innerHTML = data.content;
           clicks = data.content; // Синхронизируем локальный счётчик
         }
-		else if (data.header === "history"){
-			
-			if(data.content == ""){
-			
-				document.getElementById('history').innerHTML = "Нет истории кликов";
-				
-			}
-			else{
-				
-				document.getElementById('history').innerHTML = data.content;
-				
-			}
-			document.getElementById('clicker').classList.remove("hidden");
-			
-		}
+        else if (data.header === "historyToday") {
+
+            document.getElementById('historyToday').innerHTML = data.content;
+
+        }
+        else if (data.header === "historyTotal") {
+
+          if (data.content == "") {
+
+            document.getElementById('historyTotal').innerHTML = "Нет истории кликов";
+
+          }
+          else {
+
+            document.getElementById('historyTotal').innerHTML = data.content;
+
+          }
+          document.getElementById('clicker').classList.remove("hidden");
+
+        }
       };
 
       ws.onclose = function () {
@@ -87,10 +104,34 @@
       document.getElementById('btn').addEventListener('click', () => {
         clicks++;
         ws.send("click");
-        document.getElementById('clicks').innerText = clicks;
-		
+        document.getElementById('clicks').innerHTML = clicks;
+        document.getElementById('activeClicks').innerHTML = parseInt(document.getElementById('activeClicks').innerHTML) + 1;  
+      });
+
+      document.getElementById('todayClicks').addEventListener('click', () => {
+
+        if (document.getElementById('historyToday').classList.contains("hidden")) {
+
+          document.getElementById("historyToday").classList.remove('hidden');
+          document.getElementById('historyTotal').classList.add('hidden');
+
+        }
+
+      });
+
+      document.getElementById('totalClicks').addEventListener('click', () => {
+
+        if (document.getElementById('historyTotal').classList.contains("hidden")) {
+
+          document.getElementById("historyTotal").classList.remove('hidden');
+          document.getElementById('historyToday').classList.add('hidden');
+
+        }
+
       });
     }
+
   </script>
 </body>
+
 </html>

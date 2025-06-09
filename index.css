@@ -1,5 +1,6 @@
 #history-box {
   min-height: 50vh;
+  max-height: 50vh;
 }
 
 #clicker {
@@ -8,4 +9,29 @@
 
 .hidden {
   display: none !important;
+}
+
+.btnHistory {
+
+  height: 39px;
+
+}
+
+#historyToday::-webkit-scrollbar,
+#historyTotal::-webkit-scrollbar {
+  width: 5px;
+  background-color: transparent;
+  height: 8px;
+}
+
+#historyToday::-webkit-scrollbar-thumb,
+#historyTotal::-webkit-scrollbar-thumb {
+  border-radius: 20px;
+  background-color: #cbcbcb;
+}
+
+#historyToday::-webkit-scrollbar-track,
+#historyTotal::-webkit-scrollbar-track {
+  border-radius: 20px;
+  background-color: transparent;
 }

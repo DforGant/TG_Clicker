@@ -67,14 +67,27 @@ async def websocket_endpoint(websocket: WebSocket, telegram_id: int):
     active_sessions[telegram_id] = {"ws": websocket, "session_start": start_time, "clicksUser":0}
     message = Message("clicks",active_user.total_clicks);
     await active_sessions[telegram_id]['ws'].send_text(message.to_json()) # отпрака данных пользователю
-    
-    history = db.getHistoryUser(telegram_id)
-    historyUser = ""
-    
-    for date, total in history:
-        historyUser += f"<div class='session row bg-light border p-3 text-center'><p>Клики за <span>{date}</span>: <span>{total}</span></p></div>"
 
-    message = Message("history",historyUser)
+    # история пользователя за сегодня
+
+    historyToday = db.getHistoryUserToday(telegram_id)
+    historyUserToday = f"<div class='session activeSession bg-light border p-2 text-center d-flex justify-content-center align-items-center' style='gap: 9px;'>Клики за время<div><div class='timeStart'>Начало: {active_sessions[telegram_id]['session_start'].strftime('%H:%M:%S')}</div><div class='timeEnd'>Конец: --:--:--</div></div>: <span id='activeClicks'>0</span></div>"
+    
+    for date, startTime, endTime, clicks in historyToday:
+        historyUserToday += f"<div class='session bg-light border p-2 text-center d-flex justify-content-center align-items-center' style='gap: 9px;'>Клики за время<div><div class='timeStart'>Начало: {startTime}</div><div class='timeEnd'>Конец: {endTime}</div></div>: <span>{clicks}</span></div>"
+
+    message = Message("historyToday",historyUserToday)
+
+    await active_sessions[telegram_id]['ws'].send_text(message.to_json())
+    
+    # история пользователя за всер время
+    historyTotal = db.getHistoryUser(telegram_id)
+    historyUserTotal = ""
+    
+    for date, total in historyTotal:
+        historyUserTotal += f"<div class='session bg-light border p-2 text-center d-flex justify-content-center align-items-center' style='gap: 9px;'><div>Клики за <span>{date}</span>: <span>{total}</span></div></div>"
+    
+    message = Message("historyTotal",historyUserTotal)
     await active_sessions[telegram_id]['ws'].send_text(message.to_json())
     
     try:

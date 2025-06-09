@@ -47,12 +47,19 @@ class DB:
     def getUser(self,telegram_id):
         return self.database.query(User).filter(User.telegram_id == telegram_id).first()
         
-
+    def getHistoryUserToday(self,telegram_id,date = datetime.datetime.now().date()):
+        return self.database.query(
+        func.date(SessionLog.start_time).label('date'),
+        func.strftime("%H:%M:%S",SessionLog.start_time).label('startTime'),
+        func.strftime("%H:%M:%S",SessionLog.end_time).label('endTime'),
+        SessionLog.clicks
+        ).filter(and_(SessionLog.user_id == telegram_id, func.date(SessionLog.start_time) == date)).order_by(SessionLog.id.desc()).all()
+        
     def getHistoryUser(self,telegram_id):
         return self.database.query(
         func.date(SessionLog.start_time).label('date'),
         func.sum(SessionLog.clicks).label('total')
-        ).filter(SessionLog.user_id == telegram_id).group_by(func.date(SessionLog.start_time)).all()
+        ).filter(SessionLog.user_id == telegram_id).group_by(func.date(SessionLog.start_time)).order_by(func.date(SessionLog.start_time).desc()).all()
 
     def updateDataUser(self,telegram_id,session):
         # обновление кликов
@@ -67,15 +74,6 @@ class DB:
         self.database.commit()
         self.database.refresh(sessionUser)
         return 0
-        
-    def getSession(self,telegram_id,start_time):
-        return self.database.query(SessionLog).filter(and_(SessionLog.user_id == telegram_id, SessionLog.start_time == start_time)).first()
-
-    def close(self):
-        self.database.close()
 
     def getSessions(self,telegram_id):
         return self.database.query(SessionLog.user_id,SessionLog.start_time,SessionLog.end_time,SessionLog.clicks).filter(SessionLog.user_id == telegram_id).all()
-
-    def isActive(self):
-        return self.database.is_active    
