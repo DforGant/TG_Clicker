@@ -1,23 +1,25 @@
 import os
 import asyncio
+import logging
 from settings import settings
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.types import (
-    ReplyKeyboardMarkup, 
-    KeyboardButton, 
-    InlineKeyboardMarkup, 
-    InlineKeyboardButton
+    ReplyKeyboardMarkup, KeyboardButton,
+    InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 )
 
-# Загрузка из .env
+# Настройка логов
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 BOT_TOKEN = settings.BOT_TOKEN
-app_url = settings.app_url
-
 if not BOT_TOKEN:
-    exit("Ошибка: не найден BOT_TOKEN в .env файле")
+    logger.error("Ошибка: не найден BOT_TOKEN в .env файле")
+    exit(1)
 
-# Инициализация бота
+WEB_APP_URL = settings.app_url
+
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
@@ -31,48 +33,45 @@ main_keyboard = ReplyKeyboardMarkup(
 
 @dp.message(Command("start"))
 async def start_handler(message: types.Message):
-    """Обработчик команды /start"""
-    game_button = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="▶️ Играть сейчас", url=app_url)]
+    web_app_button = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+            text="▶️ Играть сейчас",
+            web_app=WebAppInfo(url=WEB_APP_URL)
+        )]
     ])
-    
     await message.answer(
-        "🎮 Добро пожаловать в Clicker Game!\n\n"
-        "Используйте кнопки ниже для навигации:",
+        "🎮 Добро пожаловать в Clicker Game!\n"
+        "Нажмите кнопку ниже, чтобы запустить игру в Telegram.",
         reply_markup=main_keyboard
     )
-    await message.answer(
-        "Нажмите чтобы начать игру:",
-        reply_markup=game_button
-    )
+    await message.answer("Запуск MiniApp:", reply_markup=web_app_button)
 
 @dp.message(lambda message: message.text == '🎮 Начать игру')
 @dp.message(Command("game"))
 async def game_handler(message: types.Message):
-    """Обработчик кнопки игры"""
-    game_btn = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🔵 Перейти к игре", url=app_url)]
+    game_button = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+            text="🔵 Перейти в MiniApp",
+            web_app=WebAppInfo(url=WEB_APP_URL)
+        )]
     ])
-    await message.answer("Ваша ссылка на игру:", reply_markup=game_btn) 
+    await message.answer("Запуск игры в Telegram:", reply_markup=game_button)
 
 @dp.message(lambda message: message.text == '🔄 Получить ссылку')
 async def refresh_handler(message: types.Message):
-    """Обработчик обновления ссылки"""
     await game_handler(message)
 
 @dp.message()
-async def any_message_handler(message: types.Message):
-    """Обработчик всех остальных сообщений"""
+async def fallback_handler(message: types.Message):
     await message.answer(
-        "Используйте кнопки меню или команды:\n"
-        "/start - начать работу\n"
-        "/game - получить ссылку на игру",
+        "Пожалуйста, используйте команды или кнопки ниже.",
         reply_markup=main_keyboard
     )
 
 async def main():
+    logger.info("Бот запущен...")
     await dp.start_polling(bot)
+    
 
-if __name__ == '__main__':
-    print("Бот запущен...")
+if __name__ == "__main__":
     asyncio.run(main())
