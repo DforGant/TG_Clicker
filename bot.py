@@ -1,7 +1,7 @@
 import os
 import asyncio
 import logging
-from dotenv import load_dotenv
+from settings import settings
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.types import (
@@ -13,17 +13,17 @@ from aiogram.types import (
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-load_dotenv()
-BOT_TOKEN = os.getenv("BOT_TOKEN")
+BOT_TOKEN = settings.BOT_TOKEN
 if not BOT_TOKEN:
     logger.error("Ошибка: не найден BOT_TOKEN в .env файле")
     exit(1)
 
-WEB_APP_URL = os.getenv("app_url")  # замените на ваш домен
+WEB_APP_URL = settings.app_url
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
+# Клавиатура главного меню
 main_keyboard = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text='🎮 Начать игру'), KeyboardButton(text='🔄 Получить ссылку')]
@@ -71,6 +71,7 @@ async def fallback_handler(message: types.Message):
 async def main():
     logger.info("Бот запущен...")
     await dp.start_polling(bot)
+    
 
 if __name__ == "__main__":
     asyncio.run(main())
