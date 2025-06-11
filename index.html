@@ -71,6 +71,11 @@
           document.getElementById('clicks').innerHTML = data.content;
           clicks = data.content; // Синхронизируем локальный счётчик
         }
+		else if (data.header === "NoValidHash"){
+		
+			document.body.innerHTML += data.content
+			
+		}
         else if (data.header === "historyToday") {
 
             document.getElementById('historyToday').innerHTML = data.content;
@@ -94,7 +99,8 @@
       };
 
       ws.onclose = function () {
-        document.body.innerHTML = "<div class='text-center p-5'>⚠️ Соединение с сервером было закрыто</div>";
+		document.getElementById('clicker').remove()
+        document.body.innerHTML += "<div class='text-center p-5'>⚠️ Соединение с сервером было закрыто</div>";
       };
 
       ws.onerror = function (e) {

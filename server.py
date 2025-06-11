@@ -84,7 +84,7 @@ async def websocket_endpoint(websocket: WebSocket, telegram_id: int):
     isValidateHash = validate_telegram_data(initData['user']['initData'])    
     
     if not isValidateHash:
-        message = Message("NoValidHash","<h1>Хеш не совпадает</h1>")
+        message = Message("NoValidHash","<h1 class='text-center p-5'>Хеш не совпадает</h1>")
         await websocket.send_text(message.to_json())
         await websocket.close()
     
