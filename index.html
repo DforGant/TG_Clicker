@@ -51,17 +51,17 @@
     tg.expand();
 
     const user = tg.initDataUnsafe?.user;
-
+	
     if (!user) {
       document.body.innerHTML = "<div class='text-center p-5'>❌ Ошибка: не удалось получить данные пользователя из Telegram</div>";
     }
     else {
       const userId = user.id;
-
+	  const initData = tg.initData
       ws = new WebSocket(`wss://${location.host}/ws/${userId}`);
 
       ws.onopen = function () {
-        ws.send(JSON.stringify({ type: "init", userId: userId }));
+        ws.send(JSON.stringify({ type: "init", user: {"telegram_id": userId, "initData": initData} }));
       };
 
       ws.onmessage = function (e) {

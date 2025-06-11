@@ -5,11 +5,17 @@ from fastapi.staticfiles import StaticFiles
 from models import User, SessionLog, init_db, DB
 from ClassMessage import Message
 from settings import settings
+import hmac
+import hashlib
+import json
+import urllib.parse
 import uvicorn
 import datetime
+import time
 
 HOST = settings.HOST
 PORT = settings.PORT
+BOT_TOKEN = settings.BOT_TOKEN
 
 app = FastAPI() # объект приложения
 app.add_middleware(
@@ -32,7 +38,35 @@ db = DB()
 
 # Активные и дублированные сессии
 active_sessions = {}
-dubUser = {}
+
+def validate_telegram_data(init_data: str) -> bool:
+
+    data_dict = dict(urllib.parse.parse_qsl(init_data, keep_blank_values=True))
+
+    received_hash = data_dict.pop("hash", None)
+    if not received_hash:
+        print("[LOG] No hash received, validation failed.")
+        return False
+
+    data_check_string = "\n".join(f"{k}={v}" for k, v in sorted(data_dict.items()))
+
+    secret_key = hmac.new(
+        key="WebAppData".encode(),
+        msg=BOT_TOKEN.encode(),
+        digestmod=hashlib.sha256
+    ).digest()
+
+    computed_hash = hmac.new(
+        key=secret_key,
+        msg=data_check_string.encode(),
+        digestmod=hashlib.sha256
+    ).hexdigest()
+
+    if computed_hash != received_hash:
+        print("[LOG] Hash does not match, validation failed.")
+        return False
+        
+    return True
 
 
 @app.get("/") # обработка запроса получения страницы сайта
@@ -46,15 +80,21 @@ async def get():
 @app.websocket("/ws/{telegram_id}")
 async def websocket_endpoint(websocket: WebSocket, telegram_id: int):
     await websocket.accept()
+    initData = await websocket.receive_json()
+    isValidateHash = validate_telegram_data(initData['user']['initData'])    
+    
+    if not isValidateHash:
+        message = Message("NoValidHash","<h1>Хеш не совпадает</h1>")
+        await websocket.send_text(message.to_json())
+        await websocket.close()
     
     global db
     
     active_user = db.getUser(telegram_id) # получение данных о пользователе
     
     if telegram_id in active_sessions: # проверка на использование пользователем нескольких устройств
-        dubUser[telegram_id] = active_sessions[telegram_id]
-        db.updateDataUser(telegram_id,dubUser[telegram_id])
-        await dubUser[telegram_id]['ws'].close() # закрытие websocket соединения
+        db.updateDataUser(telegram_id,active_sessions[telegram_id]) if active_sessions[telegram_id]['clicksUser']!=0 else None
+        await active_sessions[telegram_id]['ws'].close() # закрытие websocket соединения
         print(f"Disconnect: {telegram_id}")
 
     print(f"New connection: {telegram_id}")
@@ -97,12 +137,10 @@ async def websocket_endpoint(websocket: WebSocket, telegram_id: int):
                 active_sessions[telegram_id]['clicksUser'] += 1
             
     except WebSocketDisconnect as error:
-        if telegram_id in dubUser: # проверка на использование пользователем нескольких устройств
-            del dubUser[telegram_id] # Удаление старого соединения
-            
-        else: # Запись кликов в БД при отключении соединения
+        if websocket == active_sessions[telegram_id]['ws']:
+            # Запись кликов в БД при отключении соединения
             print(f"Disconnect: {telegram_id}")
-            db.updateDataUser(telegram_id,active_sessions[telegram_id])
+            db.updateDataUser(telegram_id,active_sessions[telegram_id]) if active_sessions[telegram_id]['clicksUser']!=0 else None 
             del active_sessions[telegram_id] # Удаление сессии
 
 if __name__ == "__main__":
