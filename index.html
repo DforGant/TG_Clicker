@@ -11,32 +11,34 @@
   <link rel="stylesheet" href="/static/index.css">
 </head>
 
-<body class="d-flex flex-column min-vh-100 justify-content-center">
-  <div class="container my-5 hidden" id="clicker">
+<body class="d-flex flex-column min-vh-100"> 
+  <div class="container my-3" id="clicker">
     <div class="row" id="game">
+
       <!-- Кликер -->
-      <div class="col-md-6 mb-4 text-center">
-        <div class="text-center" id="contClick">
-          Клики: <span class="display-6" id="clicks">0</span>
+      <div class="col-md-6 mb-4 mt-5 text-center">
+        <div class="text-center mt-5" id="contClick">
+          <img src="/static/img/монета.png" style="height: 10vh"> <span class="display-6 text-white" id="clicks">0</span>
         </div>
-        <button class="btn btn-primary btn-lg" id="btn">Кликни меня</button>
-      </div>
-      <!-- История по дням -->
-      <div class="col-md-6 mb-4" id="history-box">
-        <!-- Настроить, чтобы было по центру -->
-        <div class="border rounded p-4 h-100" id="userHistory">
-          <div id="optionHistory" class="d-flex justify-content-center align-items-center" style="gap: 10px;">
-            <h6 class="mb-1">История кликов</h6>
-            <div id="todayClicks" class="btnHistory btn btn-primary">Cегодня</div>
-            <div id="totalClicks" class="btnHistory btn btn-primary">Всего</div>
-          </div>
-          <div id="historyToday" class="mt-2 mb-2 d-flex flex-column overflow-auto" style="min-height: 37vh; max-height: 37vh; gap: 4px;">
-          </div>
-          <div id="historyTotal" class="hidden mt-2 mb-2 d-flex flex-column overflow-auto" style="min-height: 37vh;max-height: 37vh; gap: 4px;">
-          </div>
-        </div>
+        <button id="btn" class="btn"><img src="/static/img/1.png" style="width: 90%;"></button>
       </div>
 
+      <!-- История -->
+      <div id="optionHistory" class="btn-group mb-5">
+        <div id="todayClicks" class="btn btn-outline-warning history-btn">Клики за сегодня</div>
+        <div id="totalClicks" class="btn btn-outline-warning history-btn">Клики всего</div>
+      </div>
+
+      <div class="col-md-6 mb-4 hidden" id="history-box">
+        <div class="border rounded-bottom px-4 pb-4 pt-3 h-100 position-relative" id="userHistory"> 
+          <div id="historyToday" class="history-panel my-2 d-flex vstack gap-2 overflow-auto">
+
+          </div>
+          <div id="historyTotal" class="history-panel my-2 d-flex vstack gap-2 overflow-auto hidden">
+
+          </div>
+        </div>
+      </div>
     </div>
   </div>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/js/bootstrap.bundle.min.js"
@@ -51,17 +53,17 @@
     tg.expand();
 
     const user = tg.initDataUnsafe?.user;
-	
+
     if (!user) {
       document.body.innerHTML = "<div class='text-center p-5'>❌ Ошибка: не удалось получить данные пользователя из Telegram</div>";
     }
     else {
       const userId = user.id;
-	  const initData = tg.initData
+
       ws = new WebSocket(`wss://${location.host}/ws/${userId}`);
 
       ws.onopen = function () {
-        ws.send(JSON.stringify({ type: "init", user: {"telegram_id": userId, "initData": initData} }));
+        ws.send(JSON.stringify({ type: "init", userId: userId }));
       };
 
       ws.onmessage = function (e) {
@@ -71,14 +73,10 @@
           document.getElementById('clicks').innerHTML = data.content;
           clicks = data.content; // Синхронизируем локальный счётчик
         }
-		else if (data.header === "NoValidHash"){
-		
-			document.body.innerHTML += data.content
-			
-		}
         else if (data.header === "historyToday") {
 
             document.getElementById('historyToday').innerHTML = data.content;
+            console.log(data.content)
 
         }
         else if (data.header === "historyTotal") {
@@ -99,45 +97,63 @@
       };
 
       ws.onclose = function () {
-		document.getElementById('clicker').remove()
-        document.body.innerHTML += "<div class='text-center p-5'>⚠️ Соединение с сервером было закрыто</div>";
+        document.body.innerHTML = "<div class='text-center p-5'>⚠️ Соединение с сервером было закрыто</div>";
       };
 
       ws.onerror = function (e) {
         console.error("WebSocket error:", e);
       };
 
+      var activeRipples = 0
+
       document.getElementById('btn').addEventListener('click', () => {
+        if (activeRipples < 6){
+          let ripple = document.createElement('span')
+          ripple.classList.add('ripple')
+          btn.appendChild(ripple)
+          activeRipples++
+      
+          ripple.addEventListener('animationend', () => {
+          ripple.remove()
+          activeRipples--
+          })
+        }
         clicks++;
         ws.send("click");
         document.getElementById('clicks').innerHTML = clicks;
         document.getElementById('activeClicks').innerHTML = parseInt(document.getElementById('activeClicks').innerHTML) + 1;  
       });
 
+      // Логика кнопок для истории
+      let historyToday = document.getElementById("historyToday")
+      let historyTotal = document.getElementById('historyTotal')
+
+      function toggleHistory() {
+      document.getElementById('history-box').classList.toggle('hidden')
+      document.getElementById('optionHistory').classList.toggle('mb-5')
+      }
+
       document.getElementById('todayClicks').addEventListener('click', () => {
-
-        if (document.getElementById('historyToday').classList.contains("hidden")) {
-
-          document.getElementById("historyToday").classList.remove('hidden');
-          document.getElementById('historyTotal').classList.add('hidden');
-
-        }
-
+        if (historyToday.classList.contains("hidden")) {
+        historyToday.classList.remove('hidden');
+        historyTotal.classList.add('hidden');
+        if (!document.getElementById('history-box').classList.contains('hidden')){
+          return
+        }}
+        toggleHistory()
       });
 
       document.getElementById('totalClicks').addEventListener('click', () => {
-
-        if (document.getElementById('historyTotal').classList.contains("hidden")) {
-
-          document.getElementById("historyTotal").classList.remove('hidden');
-          document.getElementById('historyToday').classList.add('hidden');
-
+        if (historyTotal.classList.contains("hidden")) {
+          historyTotal.classList.remove('hidden');
+          historyToday.classList.add('hidden');
+          if (!document.getElementById('history-box').classList.contains('hidden')){
+            return
+          }
         }
-
-      });
+        toggleHistory()
+      })
     }
-
   </script>
 </body>
-
 </html>

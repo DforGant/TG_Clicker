@@ -5,22 +5,16 @@ from fastapi.staticfiles import StaticFiles
 from models import User, SessionLog, init_db, DB
 from ClassMessage import Message
 from settings import settings
-import hmac
-import hashlib
-import json
-import urllib.parse
 import uvicorn
 import datetime
-import time
 
 HOST = settings.HOST
 PORT = settings.PORT
-BOT_TOKEN = settings.BOT_TOKEN
 
 app = FastAPI() # объект приложения
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Заменить на наш домен
+    allow_origins=["*"], 
     allow_methods=["*"],
     allow_headers=["*"],
     allow_credentials=True
@@ -38,63 +32,27 @@ db = DB()
 
 # Активные и дублированные сессии
 active_sessions = {}
-
-def validate_telegram_data(init_data: str) -> bool:
-
-    data_dict = dict(urllib.parse.parse_qsl(init_data, keep_blank_values=True))
-
-    received_hash = data_dict.pop("hash", None)
-    if not received_hash:
-        print("[LOG] No hash received, validation failed.")
-        return False
-
-    data_check_string = "\n".join(f"{k}={v}" for k, v in sorted(data_dict.items()))
-
-    secret_key = hmac.new(
-        key="WebAppData".encode(),
-        msg=BOT_TOKEN.encode(),
-        digestmod=hashlib.sha256
-    ).digest()
-
-    computed_hash = hmac.new(
-        key=secret_key,
-        msg=data_check_string.encode(),
-        digestmod=hashlib.sha256
-    ).hexdigest()
-
-    if computed_hash != received_hash:
-        print("[LOG] Hash does not match, validation failed.")
-        return False
-        
-    return True
+dubUser = {}
 
 
 @app.get("/") # обработка запроса получения страницы сайта
 async def get():
-    # Тестовая HTML страница
     with open('index.html','r',encoding="utf-8") as file:
         html = file.read()
         return HTMLResponse(html)
 
-
 @app.websocket("/ws/{telegram_id}")
 async def websocket_endpoint(websocket: WebSocket, telegram_id: int):
     await websocket.accept()
-    initData = await websocket.receive_json()
-    isValidateHash = validate_telegram_data(initData['user']['initData'])    
-    
-    if not isValidateHash:
-        message = Message("NoValidHash","<h1 class='text-center p-5'>Хеш не совпадает</h1>")
-        await websocket.send_text(message.to_json())
-        await websocket.close()
     
     global db
     
     active_user = db.getUser(telegram_id) # получение данных о пользователе
     
     if telegram_id in active_sessions: # проверка на использование пользователем нескольких устройств
-        db.updateDataUser(telegram_id,active_sessions[telegram_id]) if active_sessions[telegram_id]['clicksUser']!=0 else None
-        await active_sessions[telegram_id]['ws'].close() # закрытие websocket соединения
+        dubUser[telegram_id] = active_sessions[telegram_id]
+        db.updateDataUser(telegram_id,dubUser[telegram_id])
+        await dubUser[telegram_id]['ws'].close() # закрытие websocket соединения
         print(f"Disconnect: {telegram_id}")
 
     print(f"New connection: {telegram_id}")
@@ -111,10 +69,10 @@ async def websocket_endpoint(websocket: WebSocket, telegram_id: int):
     # история пользователя за сегодня
 
     historyToday = db.getHistoryUserToday(telegram_id)
-    historyUserToday = f"<div class='session activeSession bg-light border p-2 text-center d-flex justify-content-center align-items-center' style='gap: 9px;'>Клики за время<div><div class='timeStart'>Начало: {active_sessions[telegram_id]['session_start'].strftime('%H:%M:%S')}</div><div class='timeEnd'>Конец: --:--:--</div></div>: <span id='activeClicks'>0</span></div>"
+    historyUserToday = f"<div class='session activeSession bg-warning shadow-sm rounded p-3 text-center d-flex justify-content-between align-items-center'><div><div class='timeStart'>Начало: {active_sessions[telegram_id]['session_start'].strftime('%H:%M:%S')}</div><div class='timeEnd'>Конец: --:--:--</div></div><span id='activeClicks' class='badge bg-light text-dark fs-5 px-3 py-2'>0</span></div>"
     
     for date, startTime, endTime, clicks in historyToday:
-        historyUserToday += f"<div class='session bg-light border p-2 text-center d-flex justify-content-center align-items-center' style='gap: 9px;'>Клики за время<div><div class='timeStart'>Начало: {startTime}</div><div class='timeEnd'>Конец: {endTime}</div></div>: <span>{clicks}</span></div>"
+        historyUserToday += f"<div class='session bg-light border rounded shadow-sm p-2 d-flex justify-content-between align-items-center'><div><div class='timeStart text-muted'>Начало: {startTime}</div><div class='timeEnd text-muted'>Конец: {endTime}</div></div>: <span class='badge bg-secondary fs-5 px-3 py-2'>{clicks}</span></div>"
 
     message = Message("historyToday",historyUserToday)
 
@@ -125,7 +83,7 @@ async def websocket_endpoint(websocket: WebSocket, telegram_id: int):
     historyUserTotal = ""
     
     for date, total in historyTotal:
-        historyUserTotal += f"<div class='session bg-light border p-2 text-center d-flex justify-content-center align-items-center' style='gap: 9px;'><div>Клики за <span>{date}</span>: <span>{total}</span></div></div>"
+        historyUserTotal += f"<div class='session bg-light border rounded shadow-sm p-2 d-flex justify-content-between align-items-center'>Клики за <span>{date}</span>: <span class='badge bg-secondary fs-5 px-3 py-2'>{total}</span></div>"
     
     message = Message("historyTotal",historyUserTotal)
     await active_sessions[telegram_id]['ws'].send_text(message.to_json())
@@ -137,10 +95,12 @@ async def websocket_endpoint(websocket: WebSocket, telegram_id: int):
                 active_sessions[telegram_id]['clicksUser'] += 1
             
     except WebSocketDisconnect as error:
-        if websocket == active_sessions[telegram_id]['ws']:
-            # Запись кликов в БД при отключении соединения
+        if telegram_id in dubUser: # проверка на использование пользователем нескольких устройств
+            del dubUser[telegram_id] # Удаление старого соединения
+            
+        else: # Запись кликов в БД при отключении соединения
             print(f"Disconnect: {telegram_id}")
-            db.updateDataUser(telegram_id,active_sessions[telegram_id]) if active_sessions[telegram_id]['clicksUser']!=0 else None 
+            db.updateDataUser(telegram_id,active_sessions[telegram_id])
             del active_sessions[telegram_id] # Удаление сессии
 
 if __name__ == "__main__":
