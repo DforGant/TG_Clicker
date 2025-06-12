@@ -59,11 +59,11 @@
     }
     else {
       const userId = user.id;
-
+	  const initData = tg.initData
       ws = new WebSocket(`wss://${location.host}/ws/${userId}`);
 
       ws.onopen = function () {
-        ws.send(JSON.stringify({ type: "init", userId: userId }));
+        ws.send(JSON.stringify({ type: "init", user: {"telegram_id": userId, "initData": initData} }));
       };
 
       ws.onmessage = function (e) {
@@ -73,6 +73,11 @@
           document.getElementById('clicks').innerHTML = data.content;
           clicks = data.content; // Синхронизируем локальный счётчик
         }
+		else if (data.header === "NoValidHash"){
+		
+			document.body.innerHTML += data.content
+			
+		}
         else if (data.header === "historyToday") {
 
             document.getElementById('historyToday').innerHTML = data.content;
