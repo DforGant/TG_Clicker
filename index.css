@@ -1,11 +1,79 @@
-#history-box {
-  min-height: 50vh;
+body {
+  background: url("img/1080_1920.png") round center/cover;
+}
+
+.hidden {
+  display: none !important;
 }
 
 #clicker {
   min-height: 25vh;
 }
 
-.hidden {
-  display: none !important;
+#btn {
+  position: relative;
+  border-width: 0;
+}
+
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: white;
+  width: 100px;
+  height: 100px;
+  opacity: 0;
+  animation: ripple 0.6s ease-out forwards;
+  pointer-events: none;
+  top: 30%;
+  left: 35%;
+}
+
+@keyframes ripple {
+  0% {
+    transform: scale(0);
+    opacity: 0.3;
+  }
+  100% {
+    transform: scale(2.5);
+    opacity: 0;
+  }
+}
+
+.history-btn {
+  border-bottom-right-radius: 0;
+  border-bottom-left-radius: 0;
+}
+#history-box {
+  max-height: 50vh;
+}
+  #userHistory {
+    background: white;
+  }
+    #closeHistory {
+      right: 5vw;
+      top: 5vw;
+    }
+    .history-panel {
+      min-height: 37vh; 
+      max-height: 37vh; 
+      gap: 4px;
+    }
+
+#historyToday::-webkit-scrollbar,
+#historyTotal::-webkit-scrollbar {
+  width: 5px;
+  background-color: transparent;
+  height: 8px;
+}
+
+#historyToday::-webkit-scrollbar-thumb,
+#historyTotal::-webkit-scrollbar-thumb {
+  border-radius: 20px;
+  background-color: #cbcbcb;
+}
+
+#historyToday::-webkit-scrollbar-track,
+#historyTotal::-webkit-scrollbar-track {
+  border-radius: 20px;
+  background-color: transparent;
 }

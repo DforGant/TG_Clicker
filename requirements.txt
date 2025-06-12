@@ -3,5 +3,12 @@ uvicorn
 sqlalchemy
 aiogram
 pydantic_settings
-dotenv
-
+datetime 
+os
+asyncio
+logging
+json
+hmac
+hashlib
+urllib.parse
+time
