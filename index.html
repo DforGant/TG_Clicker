@@ -112,22 +112,24 @@
 
       var activeRipples = 0
 
-      document.getElementById('btn').addEventListener('click', () => {
-        if (activeRipples < 6){
-          let ripple = document.createElement('span')
-          ripple.classList.add('ripple')
-          btn.appendChild(ripple)
-          activeRipples++
+      document.getElementById('btn').addEventListener('click', (e) => {
+        if(e.isTrusted){
+          if (activeRipples < 6){
+            let ripple = document.createElement('span')
+            ripple.classList.add('ripple')
+            btn.appendChild(ripple)
+            activeRipples++
       
-          ripple.addEventListener('animationend', () => {
-          ripple.remove()
-          activeRipples--
-          })
+            ripple.addEventListener('animationend', () => {
+            ripple.remove()
+            activeRipples--
+            })
+          }
+          clicks++;
+          ws.send("click");
+          document.getElementById('clicks').innerHTML = clicks;
+          document.getElementById('activeClicks').innerHTML = parseInt(document.getElementById('activeClicks').innerHTML) + 1;
         }
-        clicks++;
-        ws.send("click");
-        document.getElementById('clicks').innerHTML = clicks;
-        document.getElementById('activeClicks').innerHTML = parseInt(document.getElementById('activeClicks').innerHTML) + 1;  
       });
 
       // Логика кнопок для истории
