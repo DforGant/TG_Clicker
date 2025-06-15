@@ -11,7 +11,6 @@ import json
 import urllib.parse
 import uvicorn
 import datetime
-import time
 
 HOST = settings.HOST
 PORT = settings.PORT
@@ -113,7 +112,7 @@ async def websocket_endpoint(websocket: WebSocket, telegram_id: int):
     historyToday = db.getHistoryUserToday(telegram_id)
     historyUserToday = f"<div class='session activeSession bg-warning shadow-sm rounded p-3 text-center d-flex justify-content-between align-items-center'><div><div class='timeStart'>Начало: {active_sessions[telegram_id]['session_start'].strftime('%H:%M:%S')}</div><div class='timeEnd'>Конец: --:--:--</div></div><span id='activeClicks' class='badge bg-light text-dark fs-5 px-3 py-2'>0</span></div>"
     
-    for date, startTime, endTime, clicks in historyToday:
+    for startTime, endTime, clicks in historyToday:
         historyUserToday += f"<div class='session bg-light border rounded shadow-sm p-2 d-flex justify-content-between align-items-center'><div><div class='timeStart text-muted'>Начало: {startTime}</div><div class='timeEnd text-muted'>Конец: {endTime}</div></div>: <span class='badge bg-secondary fs-5 px-3 py-2'>{clicks}</span></div>"
     
     message = Message("historyToday",historyUserToday)
@@ -142,6 +141,8 @@ async def websocket_endpoint(websocket: WebSocket, telegram_id: int):
             print(f"Disconnect: {telegram_id}")
             db.updateDataUser(telegram_id,active_sessions[telegram_id]) if active_sessions[telegram_id]['clicksUser']!=0 else None 
             del active_sessions[telegram_id] # Удаление сессии
+    except Exception as error:
+        print(f"Ошибка: {error}")
 
 if __name__ == "__main__":
     uvicorn.run(app, host=HOST, port=PORT) # Запуск Сервера

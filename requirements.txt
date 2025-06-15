@@ -11,4 +11,3 @@ json
 hmac
 hashlib
 urllib.parse
-time

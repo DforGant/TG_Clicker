@@ -49,7 +49,6 @@ class DB:
         
     def getHistoryUserToday(self,telegram_id,date = datetime.datetime.now().date()):
         return self.database.query(
-        func.date(SessionLog.start_time).label('date'),
         func.strftime("%H:%M:%S",SessionLog.start_time).label('startTime'),
         func.strftime("%H:%M:%S",SessionLog.end_time).label('endTime'),
         SessionLog.clicks
